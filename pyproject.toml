@@ -1,0 +1,41 @@
+[build-system]
+requires = ["setuptools", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "adif_parser"
+version = "0.1.0"
+description = "A simple parser library."
+readme = "README.md"
+authors = [
+{ name = "Fred cC", email = "w6bsd@bsdworld.org" }
+]
+license = { file = "LICENSE" }
+requires-python = ">=3.10"
+classifiers = [
+    "Intended Audience :: End Users/Desktop",
+    "Intended Audience :: Telecommunications Industry",
+    "License :: OSI Approved :: BSD License",
+    "Operating System :: MacOS",
+    "Operating System :: POSIX :: Linux",
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3.10",
+]
+
+[tool.setuptools]
+py-modules = ["adif_parser"]
+
+[project.urls]
+Homepage = "https://github.com/0x9900/adif_parser"
+
+[project.optional-dependencies]
+dev = [
+    "build",
+    "flake8",
+    "ipdb",
+    "ipython",
+    "isort",
+    "mypy",
+    "pre-commit",
+    "pylint",
+]
