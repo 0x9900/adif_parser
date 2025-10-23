@@ -7,7 +7,8 @@
 
 import re
 from pathlib import Path
-from typing import Any, Callable, Dict, List, TypeAlias, TypeVar
+from typing import Any, Callable, Dict, List, TypeAlias, TypeVar, IO
+
 
 # Pre-compiled regexes (moved outside class for reuse)
 TAG_PATTERN = re.compile(r'<([^:>]+):(\d+)>([^<]*)')
@@ -31,16 +32,12 @@ def try_convert(val: Any, converter: Callable[[Any], T]) -> Any | T:
 
 
 class ParseADIF:
-  def __init__(self, filename: Path | str) -> None:
-    if isinstance(filename, str):
-      filename = Path(filename)
-
+  def __init__(self, file_descriptor: IO[str]) -> None:
     self._header: AData | None
     self._data: AData | None
 
-    with filename.open('r', encoding='utf8') as fdi:
-      text = fdi.read()
-      self.parse_adif(text)
+    text = file_descriptor.read()
+    self.parse_adif(text)
 
   @property
   def header(self) -> AData | None:
