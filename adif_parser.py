@@ -6,9 +6,7 @@
 # Distributed under terms of the BSD 3-Clause license.
 
 import re
-from pathlib import Path
-from typing import Any, Callable, Dict, List, TypeAlias, TypeVar, IO
-
+from typing import IO, Any, Callable, Dict, List, TypeAlias, TypeVar
 
 # Pre-compiled regexes (moved outside class for reuse)
 TAG_PATTERN = re.compile(r'<([^:>]+):(\d+)>([^<]*)')
@@ -17,7 +15,7 @@ EOR_PATTERN = re.compile(r'<eor>', re.IGNORECASE)
 WHITESPACE_PATTERN = re.compile(r'\s+')
 
 # Set for O(1) lookups instead of tuple checks
-FLOAT_TAGS = frozenset(['FREQ', 'FRED_RX', 'DXCC', 'MY_CQ_ZONE', 'MY_ITU_ZONE'])
+FLOAT_TAGS = frozenset(['FREQ', 'FRED_RX'])
 NON_FLOAT_TAGS = frozenset(['BAND', 'QSO_DATE', 'TIME_ON', 'QSO_DATE_OFF', 'TIME_OFF'])
 
 T = TypeVar('T')
@@ -39,12 +37,35 @@ class ParseADIF:
     text = file_descriptor.read()
     self.parse_adif(text)
 
+  def write(self, file_descriptor: IO[str]) -> None:
+    print('This ADIF file was created by https://github.com/0x9900/adif_parser',
+          file=file_descriptor)
+    for key, val in self.header[0].items():
+      print(self.encode(key, val), file=file_descriptor)
+    print('<EOH>')
+    for contact in self.contacts:
+      record = []
+      for key, val in contact.items():
+        record.append(self.encode(key, val))
+      print(' '.join(record), file=file_descriptor)
+
+  @staticmethod
+  def encode(key: str, val: str | int | float):
+    if isinstance(val, str):
+      val = val.strip()
+    elif isinstance(val, (int, float)):
+      val = str(val)
+
+    return f'<{key.upper()}:{len(val)}>{val}'
+
   @property
-  def header(self) -> AData | None:
+  def header(self) -> AData:
+    assert self._header
     return self._header
 
   @property
-  def contacts(self) -> AData | None:
+  def contacts(self) -> AData:
+    assert self._data
     return self._data
 
   def parse_adif(self, text: str) -> None:
@@ -81,7 +102,7 @@ class ParseADIF:
         if tag_name in FLOAT_TAGS:
           value = try_convert(value, float)
         elif tag_name not in NON_FLOAT_TAGS:
-          value = try_convert(value, float)
+          value = try_convert(value, int)
 
         record[tag_name] = value
 
