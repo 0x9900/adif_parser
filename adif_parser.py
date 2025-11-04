@@ -42,12 +42,14 @@ class ParseADIF:
           file=file_descriptor)
     for key, val in self.header[0].items():
       print(self.encode(key, val), file=file_descriptor)
-    print('<EOH>')
+    print('<EOH>', file=file_descriptor)
+
     for contact in self.contacts:
       record = []
       for key, val in contact.items():
         record.append(self.encode(key, val))
       print(' '.join(record), file=file_descriptor)
+    print('<EOR>', file=file_descriptor)
 
   @staticmethod
   def encode(key: str, val: str | int | float):
