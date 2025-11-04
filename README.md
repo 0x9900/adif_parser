@@ -69,9 +69,10 @@ This library is useful for:
 - Building statistics and visualizations from logbook data
   - https://bsdworld.org/misc/FD-Stats-W6UQ-2025.html
 - Migrating data between different logging programs
+- Contest log processing
+  - https://github.com/0x9900/to_cabrillo
 - Creating custom reporting tools
 - Award tracking and verification
-- Contest log processing
 
 Example ADIF format:
 ```
