@@ -48,8 +48,7 @@ class ParseADIF:
       record = []
       for key, val in contact.items():
         record.append(self.encode(key, val))
-      print(' '.join(record), file=file_descriptor)
-    print('<EOR>', file=file_descriptor)
+      print(' '.join(record), end=' <EOR>\n', file=file_descriptor)
 
   @staticmethod
   def encode(key: str, val: str | int | float):
