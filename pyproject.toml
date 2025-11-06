@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "adif_parser"
-version = "0.1.6"
+version = "0.1.7"
 description = "A simple parser library."
 readme = "README.md"
 authors = [
@@ -23,7 +23,10 @@ classifiers = [
 ]
 
 [tool.setuptools]
-py-modules = ["adif_parser"]
+packages = ["adif_parser"]
+
+[tool.setuptools.package-data]
+"adif_parser" = ["py.typed"]
 
 [project.urls]
 Homepage = "https://github.com/0x9900/adif_parser"
