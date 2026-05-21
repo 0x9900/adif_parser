@@ -47,8 +47,6 @@ RESULT = {'QSO_DATE': '20250125', 'TIME_ON': '071611', 'TIME_OFF': '071611',
           'STX_STRING': 77.0, 'SRX_STRING': 57.0}
 
 
-filename = Path('/tmp/fred.adi')
-
 def test():
   with StringIO(LOG) as fd:
     adif = ParseADIF(fd)
