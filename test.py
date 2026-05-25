@@ -6,7 +6,6 @@
 # Distributed under terms of the BSD 3-Clause license.
 
 from io import StringIO
-from pathlib import Path
 
 from adif_parser import ParseADIF
 
@@ -46,12 +45,37 @@ RESULT = {'QSO_DATE': '20250125', 'TIME_ON': '071611', 'TIME_OFF': '071611',
           'MY_ITU_ZONE': 27.0, 'MY_CQ_ZONE': 14.0, 'PFX': 'F4', 'TX_PWR': 500.0,
           'STX_STRING': 77.0, 'SRX_STRING': 57.0}
 
+CALLSIGN = 'W6BSD'
+CALL = ['F4KIY', 'F4KIY', 'YT1A', 'LZ2MP', 'RX4HJ', 'R4AY', 'R3LC', 'YQ8E',
+        'YO3GNF', 'R6DMT', 'F8GAF', 'F5TYQ', 'PE1EWR', 'F4KJN', 'F8CRS', 'TM3P',
+        'SE4E', 'F4BDG', 'DC5CH']
+FREQ = [14.0359, 14.0361, 14.02, 14.02, 14.02, 14.02, 14.02, 14.02, 14.02, 14.02,
+        3.73, 3.73, 3.73, 3.73, 3.73, 3.73, 7.106, 3.73, 7.106]
+QSO_DATE = ['20250125', '20250125', '20250125', '20250125', '20250125', '20250125',
+            '20250125', '20250125', '20250125', '20250125', '20250222', '20250222',
+            '20250222', '20250222', '20250222', '20250222', '20250222', '20250222',
+            '20250222']
+TIME_ON = ['071343', '071611', '071826', '071850', '071910', '072034', '072059',
+           '072128', '072157', '072234', '060011', '060020', '060055', '060106',
+           '060121', '060132', '062221', '062236', '062239']
+TIME_OFF = ['071343', '071611', '071826', '071850', '071910', '072034', '072059',
+            '072128', '072157', '072234', '060011', '060020', '060055', '060106',
+            '060121', '060132', '062221', '062236', '062239']
 
-def test():
+
+def test() -> None:
   with StringIO(LOG) as fd:
+    idx = None
     adif = ParseADIF(fd)
-    assert adif.contacts[1] == RESULT
-    print('Test successful')
+    for idx, rec in enumerate(adif):
+      assert rec['CALL'] == CALL[idx]
+      assert rec['FREQ'] == FREQ[idx]
+      assert rec['QSO_DATE'] == QSO_DATE[idx]
+      assert rec['TIME_ON'] == TIME_ON[idx]
+      assert rec['TIME_OFF'] == TIME_OFF[idx]
+      assert rec['STATION_CALLSIGN'] == CALLSIGN
+      # print(f"'{rec['CALL']}'", end=', ')
+    print(f'** {idx} records tested successfully')
 
 
 if __name__ == "__main__":

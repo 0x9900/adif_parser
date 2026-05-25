@@ -6,7 +6,7 @@
 # Distributed under terms of the BSD 3-Clause license.
 
 import re
-from typing import IO, Any, Callable, Dict, List, TypeAlias, TypeVar
+from typing import IO, Any, Callable, Dict, Iterator, List, TypeAlias, TypeVar
 
 # Pre-compiled regexes (moved outside class for reuse)
 TAG_PATTERN = re.compile(r'<([^:>]+):(\d+)>([^<]*)')
@@ -36,6 +36,11 @@ class ParseADIF:
 
     text = file_descriptor.read()
     self.parse_adif(text)
+
+  def __iter__(self) -> Iterator[Dict[Any, Any]]:
+    if self._data is None:
+      return iter([])
+    return iter(self._data)
 
   def write(self, file_descriptor: IO[str]) -> None:
     print('This ADIF file was created by https://github.com/0x9900/adif_parser',
