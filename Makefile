@@ -5,7 +5,17 @@
 #
 ## Makefile for adif_parser Python module
 
-.PHONY: clean pre-commit mypy pylint build
+.PHONY: help  clean pre-commit mypy pylint build
+
+help:
+	@echo ""
+	@echo "Use the following commands:"
+	@echo "---------------------------"
+	@echo "make clean"
+	@echo "make pre-commit"
+	@echo "make mypy"
+	@echo "make pylint"
+	@echo "make build"
 
 # Clean: Remove build artifacts and cache
 clean:
@@ -21,7 +31,7 @@ mypy:
 
 # Pylint: Run code linting
 pylint:
-	pylint adif_parser/
+	-pylint adif_parser/
 
 # Build: Build the Python package
 build: clean
