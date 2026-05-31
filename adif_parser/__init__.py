@@ -6,23 +6,20 @@
 # Distributed under terms of the BSD 3-Clause license.
 
 import re
+from datetime import datetime
 from typing import IO, Any, Callable, Dict, Iterator, List, TypeAlias, TypeVar
 
 # Pre-compiled regexes (moved outside class for reuse)
 TAG_PATTERN = re.compile(r'<([^:>]+):(\d+)>([^<]*)')
 EOH_PATTERN = re.compile(r'<eoh>', re.IGNORECASE)
 EOR_PATTERN = re.compile(r'<eor>', re.IGNORECASE)
-WHITESPACE_PATTERN = re.compile(r'\s+')
-
-# Set for O(1) lookups instead of tuple checks
-FLOAT_TAGS = frozenset(['FREQ', 'FRED_RX'])
-NON_FLOAT_TAGS = frozenset(['BAND', 'QSO_DATE', 'TIME_ON', 'QSO_DATE_OFF', 'TIME_OFF'])
 
 T = TypeVar('T')
-AData: TypeAlias = List[Dict[Any, Any]]
+ARecord: TypeAlias = Dict[str, str | int | float]
+AData: TypeAlias = List[ARecord]
 
 
-def try_convert(val: Any, converter: Callable[[Any], T]) -> Any | T:
+def try_convert(val: Any, converter: Callable[[Any], T]) -> str | T:
   try:
     return converter(val)
   except ValueError:
@@ -30,26 +27,48 @@ def try_convert(val: Any, converter: Callable[[Any], T]) -> Any | T:
 
 
 class ParseADIF:
+  # Set for O(1) lookups instead of tuple checks
+  FLOAT_TAGS = frozenset(['FREQ', 'FRED_RX'])
+  NON_FLOAT_TAGS = frozenset(['BAND', 'QSO_DATE', 'TIME_ON', 'QSO_DATE_OFF', 'TIME_OFF'])
+
   def __init__(self, file_descriptor: IO[str]) -> None:
-    self._header: AData | None
-    self._data: AData | None
+    self._header: AData | None = None
+    self._data: AData | None = None
 
     text = file_descriptor.read()
     self.parse_adif(text)
 
-  def __iter__(self) -> Iterator[Dict[Any, Any]]:
+  def __iter__(self) -> Iterator[ARecord]:
+    """ The iteration will be empty if there is no data """
     if self._data is None:
       return iter([])
     return iter(self._data)
 
-  def write(self, file_descriptor: IO[str]) -> None:
+  def _write_header(self, file_descriptor: IO[str]) -> None:
     print('This ADIF file was created by https://github.com/0x9900/adif_parser',
           file=file_descriptor)
-    for key, val in self.header[0].items():
+    if self._header is not None:
+      header = self._header[0]
+    else:
+      timestamp = datetime.now()
+      header = {
+        'PROGRAMID': 'parse_adif',
+        'PROGRAMVERSION': '1.1.1',
+        'CREATED_TIMESTAMP': timestamp.strftime('%Y%m%d %H%M%S'),
+        'ADIF_VER': '3.1.5'
+      }
+
+    for key, val in header.items():
       print(self.encode(key, val), file=file_descriptor)
+
     print('<EOH>', file=file_descriptor)
 
-    for contact in self.contacts:
+  def write(self, file_descriptor: IO[str]) -> None:
+    self._write_header(file_descriptor)
+
+    if self._data is None:
+      return
+    for contact in self._data:
       record = []
       for key, val in contact.items():
         record.append(self.encode(key, val))
@@ -66,18 +85,17 @@ class ParseADIF:
 
   @property
   def header(self) -> AData:
-    assert self._header
+    if self._header is None:
+      raise ValueError('No header found in the ADIF file')
     return self._header
 
   @property
   def contacts(self) -> AData:
-    assert self._data
+    if self._data is None:
+      raise ValueError('No data found in the ADIF file')
     return self._data
 
   def parse_adif(self, text: str) -> None:
-    # Normalize whitespace in one pass
-    text = WHITESPACE_PATTERN.sub(' ', text.strip())
-
     # Split on <eoh>
     parts = EOH_PATTERN.split(text, maxsplit=1)
 
@@ -98,16 +116,18 @@ class ParseADIF:
       record = {}
       # Use finditer directly
       for match in TAG_PATTERN.finditer(raw_record):
-        tag_name, _length, value = match.groups()
-        # Strip only once and convert to upper
-        value = value.strip()
+        tag_name, length_str, _ = match.groups()  # ignore the regex-captured value
+        length = int(length_str)
+        value_start = match.start(3)  # start of group 3 in the original string
+        value = raw_record[value_start:value_start + length]
+
         if not value:
           continue
 
         tag_name = tag_name.strip().upper()
-        if tag_name in FLOAT_TAGS:
+        if tag_name in ParseADIF.FLOAT_TAGS:
           value = try_convert(value, float)
-        elif tag_name not in NON_FLOAT_TAGS:
+        elif tag_name not in ParseADIF.NON_FLOAT_TAGS:
           value = try_convert(value, int)
 
         record[tag_name] = value

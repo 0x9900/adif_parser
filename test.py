@@ -9,7 +9,8 @@ from io import StringIO
 
 from adif_parser import ParseADIF
 
-LOG = """Log exported from DXLog.net v2.6.13 at 2025-02-23 18:05:06Z
+NOTE = "Operating portable from the park\r\nSunny conditions, light wind\r\n73, John"
+LOG = f"""Log exported from DXLog.net v2.6.13 at 2025-02-23 18:05:06Z
 <PROGRAMID:5>DXLOG
 <PROGRAMVERSION:6>2.6.13
 <CREATED_TIMESTAMP:15>20250223 180506
@@ -34,6 +35,8 @@ LOG = """Log exported from DXLog.net v2.6.13 at 2025-02-23 18:05:06Z
 <QSO_DATE:8>20250222 <TIME_ON:6>062221 <TIME_OFF:6>062221 <STATION_CALLSIGN:5>W6BSD <FREQ:5>7.106 <BAND:3>40M <MODE:3>SSB <CALL:4>SE4E <RST_SENT:2>59 <RST_RCVD:2>59 <EOR>
 <QSO_DATE:8>20250222 <TIME_ON:6>062236 <TIME_OFF:6>062236 <STATION_CALLSIGN:5>W6BSD <FREQ:4>3.73 <BAND:3>80M <MODE:3>SSB <CALL:5>F4BDG <RST_SENT:2>59 <RST_RCVD:2>59 <EOR>
 <QSO_DATE:8>20250222 <TIME_ON:6>062239 <TIME_OFF:6>062239 <STATION_CALLSIGN:5>W6BSD <FREQ:5>7.106 <BAND:3>40M <MODE:3>SSB <CALL:5>DC5CH <RST_SENT:2>59 <RST_RCVD:2>59 <EOR>
+<QSO_DATE:8>20260531 <TIME_ON:4>1230 <TIME_OFF:4>1230 <STATION_CALLSIGN:5>W6BSD <FREQ:5>7.106 <BAND:3>40M <CALL:4>W1AW <MODE:3>SSB <NOTE:{len(NOTE)}>{NOTE}
+<EOR>
 """
 
 HEADER = {
@@ -46,21 +49,21 @@ HEADER = {
 CALLSIGN = 'W6BSD'
 CALL = ['F4KIY', 'F4KIY', 'YT1A', 'LZ2MP', 'RX4HJ', 'R4AY', 'R3LC', 'YQ8E',
         'YO3GNF', 'R6DMT', 'F8GAF', 'F5TYQ', 'PE1EWR', 'F4KJN', 'F8CRS', 'TM3P',
-        'SE4E', 'F4BDG', 'DC5CH']
+        'SE4E', 'F4BDG', 'DC5CH', 'W1AW']
 FREQ = [14.0359, 14.0361, 14.02, 14.02, 14.02, 14.02, 14.02, 14.02, 14.02, 14.02,
-        3.73, 3.73, 3.73, 3.73, 3.73, 3.73, 7.106, 3.73, 7.106]
+        3.73, 3.73, 3.73, 3.73, 3.73, 3.73, 7.106, 3.73, 7.106, 7.106]
 QSO_DATE = ['20250125', '20250125', '20250125', '20250125', '20250125', '20250125',
             '20250125', '20250125', '20250125', '20250125', '20250222', '20250222',
             '20250222', '20250222', '20250222', '20250222', '20250222', '20250222',
-            '20250222']
+            '20250222', '20260531']
 TIME_ON = ['071343', '071611', '071826', '071850', '071910', '072034', '072059',
            '072128', '072157', '072234', '060011', '060020', '060055', '060106',
-           '060121', '060132', '062221', '062236', '062239']
+           '060121', '060132', '062221', '062236', '062239', '1230']
 TIME_OFF = ['071343', '071611', '071826', '071850', '071910', '072034', '072059',
             '072128', '072157', '072234', '060011', '060020', '060055', '060106',
-            '060121', '060132', '062221', '062236', '062239']
+            '060121', '060132', '062221', '062236', '062239', '1230']
 BAND = ['20M', '20M', '20M', '20M', '20M', '20M', '20M', '20M', '20M', '20M',
-        '80M', '80M', '80M', '80M', '80M', '80M', '40M', '80M', '40M']
+        '80M', '80M', '80M', '80M', '80M', '80M', '40M', '80M', '40M', '40M']
 
 
 def test() -> None:
@@ -71,7 +74,6 @@ def test() -> None:
     for key, val in HEADER.items():
       assert header[key] == HEADER[key]
     print(f'** header ok')
-
     for idx, rec in enumerate(adif):
       assert rec['CALL'] == CALL[idx]
       assert rec['BAND'] == BAND[idx]
@@ -80,8 +82,12 @@ def test() -> None:
       assert rec['TIME_ON'] == TIME_ON[idx]
       assert rec['TIME_OFF'] == TIME_OFF[idx]
       assert rec['STATION_CALLSIGN'] == CALLSIGN
+      if NOTE in rec:
+        assert rec['NOTE'] == NOTE
       # print(f"'{rec['BAND']}'", end=', ')
-    print(f'** {idx} records tested successfully')
+    print(f'** {idx} records tested successfully' )
+    with open('/tmp/adif_test.adi', 'w') as fd:
+      adif.write(fd)
 
 
 if __name__ == "__main__":
