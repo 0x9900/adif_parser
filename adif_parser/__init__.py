@@ -147,21 +147,25 @@ class ParseADIF:
     for raw_record in raw_records:
       record = {}
       # Use finditer directly
-      for match in TAG_PATTERN.finditer(raw_record):
-        tag_name, length_str, _ = match.groups()  # ignore the regex-captured value
-        length = int(length_str)
-        value_start = match.start(3)  # start of group 3 in the original string
-        value = raw_record[value_start:value_start + length]
+      try:
+        for match in TAG_PATTERN.finditer(raw_record):
+          tag_name, length_str, _ = match.groups()  # ignore the regex-captured value
+          length = int(length_str)
+          value_start = match.start(3)  # start of group 3 in the original string
+          value = raw_record[value_start:value_start + length]
 
-        tag_name = tag_name.strip().upper()
-        if tag_name in ParseADIF.FLOAT_TAGS:
-          value = try_convert(value, float)
-        elif tag_name not in ParseADIF.NON_FLOAT_TAGS:
-          value = try_convert(value, int)
+          tag_name = tag_name.strip().upper()
+          if tag_name in ParseADIF.FLOAT_TAGS:
+            value = try_convert(value, float)
+          elif tag_name not in ParseADIF.NON_FLOAT_TAGS:
+            value = try_convert(value, int)
 
-        record[tag_name] = value
+          record[tag_name] = value
 
-      if record:
-        records.append(record)
+        if record:
+          records.append(record)
+      except (ValueError, IndexError) as err:
+        raise ValueError(f"Malformed ADIF record: {raw_record}") from err
+
 
     return records
