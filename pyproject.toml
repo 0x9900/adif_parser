@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "adif_parser"
-version = "0.2.1"
+dynamic = ["version"]
 description = "A simple parser library."
 readme = "README.md"
 authors = [
@@ -24,6 +24,9 @@ classifiers = [
 
 [tool.setuptools]
 packages = ["adif_parser"]
+
+[tool.setuptools.dynamic]
+version = {attr = "adif_parser.__version__"}
 
 [tool.setuptools.package-data]
 "adif_parser" = ["py.typed"]

@@ -11,7 +11,7 @@ from datetime import datetime
 from typing import IO, Any, Callable, Dict, Iterator, List, TypeAlias, TypeVar
 from xml.dom import minidom
 
-__version__ = "0.2.1"
+__version__ = "0.2.2"
 __comment__ = 'This ADIF file was created by https://github.com/0x9900/adif_parser'
 
 ADIF_VERSION = "3.1.7"
@@ -83,8 +83,8 @@ class ParseADIF:
       print(' '.join(record), end=' <EOR>\n', file=file_descriptor)
 
   def write_xml(self, file_descriptor: IO[str]) -> None:
-    header_data = self._new_header()
     """Create XML with attributes"""
+    header_data = self._new_header()
     root = ET.Element('ADX')
 
     # write the header
