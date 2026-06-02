@@ -6,8 +6,15 @@
 # Distributed under terms of the BSD 3-Clause license.
 
 import re
+import xml.etree.ElementTree as ET
 from datetime import datetime
 from typing import IO, Any, Callable, Dict, Iterator, List, TypeAlias, TypeVar
+from xml.dom import minidom
+
+__version__ = "0.2.1"
+__comment__ = 'This ADIF file was created by https://github.com/0x9900/adif_parser'
+
+ADIF_VERSION = "3.1.7"
 
 # Pre-compiled regexes (moved outside class for reuse)
 TAG_PATTERN = re.compile(r'<([^:>]+):(\d+)>([^<]*)')
@@ -28,7 +35,7 @@ def try_convert(val: Any, converter: Callable[[Any], T]) -> str | T:
 
 class ParseADIF:
   # Set for O(1) lookups instead of tuple checks
-  FLOAT_TAGS = frozenset(['FREQ', 'FRED_RX'])
+  FLOAT_TAGS = frozenset(['FREQ', 'FREQ_RX'])
   NON_FLOAT_TAGS = frozenset(['BAND', 'QSO_DATE', 'TIME_ON', 'QSO_DATE_OFF', 'TIME_OFF'])
 
   def __init__(self, file_descriptor: IO[str]) -> None:
@@ -44,35 +51,60 @@ class ParseADIF:
       return iter([])
     return iter(self._data)
 
-  def _write_header(self, file_descriptor: IO[str]) -> None:
-    print('This ADIF file was created by https://github.com/0x9900/adif_parser',
-          file=file_descriptor)
-    if self._header is not None:
-      header = self._header[0]
-    else:
-      timestamp = datetime.now()
-      header = {
-        'PROGRAMID': 'parse_adif',
-        'PROGRAMVERSION': '1.1.1',
-        'CREATED_TIMESTAMP': timestamp.strftime('%Y%m%d %H%M%S'),
-        'ADIF_VER': '3.1.5'
-      }
+  def _new_header(self) -> dict:
+    timestamp = datetime.now()
+    header = {
+      'ADIF_VER': ADIF_VERSION,
+      'CREATED_TIMESTAMP': timestamp.strftime('%Y%m%d %H%M%S'),
+      'PROGRAMID': 'parse_adif',
+      'PROGRAMVERSION': __version__,
+    }
+    return header
+
+  def write(self, file_descriptor: IO[str]) -> None:
+    header = self._new_header()
+
+    # write the header
+    print(__comment__, file=file_descriptor)
 
     for key, val in header.items():
       print(self.encode(key, val), file=file_descriptor)
 
     print('<EOH>', file=file_descriptor)
 
-  def write(self, file_descriptor: IO[str]) -> None:
-    self._write_header(file_descriptor)
-
+    # write the records
     if self._data is None:
       return
+
     for contact in self._data:
       record = []
       for key, val in contact.items():
         record.append(self.encode(key, val))
       print(' '.join(record), end=' <EOR>\n', file=file_descriptor)
+
+  def write_xml(self, file_descriptor: IO[str]) -> None:
+    header_data = self._new_header()
+    """Create XML with attributes"""
+    root = ET.Element('ADX')
+
+    # write the header
+    header = ET.SubElement(root, 'HEADER')
+
+    for key, value in header_data.items():
+      child = ET.SubElement(header, key)
+      child.text = str(value)
+
+    records = ET.SubElement(root, 'RECORDS')
+    for item in self._data:
+      record = ET.SubElement(records, 'RECORD')
+      for key, value in item.items():
+        child = ET.SubElement(record, key)
+        child.text = str(value)
+
+    xml_string = ET.tostring(root, encoding='unicode')
+    final_xml = f'<?xml version="1.0" ?>\n<!-- {__comment__} -->\n{xml_string}\n'
+    dom = minidom.parseString(final_xml)
+    print(dom.toprettyxml(indent="  "), file=file_descriptor)
 
   @staticmethod
   def encode(key: str, val: str | int | float):
