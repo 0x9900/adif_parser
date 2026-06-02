@@ -38,10 +38,7 @@ class QSORecord:
     attribute_names = list(self.__dataclass_fields__.keys())  # pylint: disable=no-member
     for attr in attribute_names:
       value = str(getattr(self, attr))
-      if value:
-        qso_parts.append(f'<{attr.upper()}:{len(value)}>{value}')
-      else:
-        qso_parts.append(f'<{attr.upper()}:0>')
+      qso_parts.append(ParseADIF.encode(attr, value))
 
     qso_parts.append("<EOR>")
     return ' '.join(qso_parts)
