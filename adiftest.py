@@ -31,6 +31,7 @@ class QSORecord:
   rst_rcvd: str = "599"
   mode: str = "CW"
   note: str = ""
+  comment: str = ""
 
   def __str__(self):
     qso_parts = []
@@ -39,6 +40,8 @@ class QSORecord:
       value = str(getattr(self, attr))
       if value:
         qso_parts.append(f'<{attr.upper()}:{len(value)}>{value}')
+      else:
+        qso_parts.append(f'<{attr.upper()}:0>')
 
     qso_parts.append("<EOR>")
     return ' '.join(qso_parts)
@@ -50,9 +53,9 @@ class ADIFTestData:
 
   NOTE_TEXT = "Operating portable from the park\r\nSunny conditions, light wind\r\n73, John"
   QSO_RECORDS = [
-    QSORecord("F4KIY", 14.0359, "20250125", "071343", "071343", "20M"),
-    QSORecord("F4KIY", 14.0361, "20250125", "071611", "071611", "20M"),
     QSORecord("YT1A", 14.02, "20250125", "071826", "071826", "20M"),
+    QSORecord("F4KIY", 14.0359, "20250125", "071343", "071343", "20M", comment="Radio world"),
+    QSORecord("F4VOX", 14.0361, "20250125", "071611", "071611", "20M", comment="Great signal"),
     QSORecord("LZ2MP", 14.02, "20250125", "071850", "071850", "20M"),
     QSORecord("RX4HJ", 14.02, "20250125", "071910", "071910", "20M"),
     QSORecord("R4AY", 14.02, "20250125", "072034", "072034", "20M"),
@@ -132,6 +135,7 @@ class ADIFTestRunner:
       assert actual.get('QSO_DATE') == expected.qso_date, f"Record {idx}: QSO_DATE mismatch"
       assert actual.get('TIME_ON') == expected.time_on, f"Record {idx}: TIME_ON mismatch"
       assert actual.get('TIME_OFF') == expected.time_off, f"Record {idx}: TIME_OFF mismatch"
+      assert actual.get('COMMENT') == expected.comment, f"Record {idx}: COMMENT mismatch"
 
       # Validate optional fields
       if expected.note:

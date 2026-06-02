@@ -11,7 +11,7 @@ from datetime import datetime
 from typing import IO, Any, Callable, Dict, Iterator, List, TypeAlias, TypeVar
 from xml.dom import minidom
 
-__version__ = "0.2.2"
+__version__ = "0.2.3"
 __comment__ = 'This ADIF file was created by https://github.com/0x9900/adif_parser'
 
 ADIF_VERSION = "3.1.7"
@@ -152,9 +152,6 @@ class ParseADIF:
         length = int(length_str)
         value_start = match.start(3)  # start of group 3 in the original string
         value = raw_record[value_start:value_start + length]
-
-        if not value:
-          continue
 
         tag_name = tag_name.strip().upper()
         if tag_name in ParseADIF.FLOAT_TAGS:
