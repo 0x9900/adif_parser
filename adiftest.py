@@ -14,7 +14,7 @@ from dataclasses import dataclass
 from io import StringIO
 from pathlib import Path
 
-from adif_parser import ParseADIF
+from adif_parser import ADIFWriter, ParseADIF
 
 
 @dataclass
@@ -38,7 +38,7 @@ class QSORecord:
     attribute_names = list(self.__dataclass_fields__.keys())  # pylint: disable=no-member
     for attr in attribute_names:
       value = str(getattr(self, attr))
-      qso_parts.append(ParseADIF.encode(attr, value))
+      qso_parts.append(ADIFWriter.encode(attr, value))
 
     qso_parts.append("<EOR>")
     return ' '.join(qso_parts)
@@ -143,17 +143,20 @@ class ADIFTestRunner:
 
   def test_write_output(self, parser: ParseADIF, output_dir: Path) -> None:
     """Test writing output files."""
+    writer = ADIFWriter(parser)
     output_dir.mkdir(exist_ok=True)
 
-    adif_path = output_dir / "adif_test.adi"
-    with open(adif_path, 'w', encoding="utf-8") as fd:
-      parser.write(fd)
-    print(f"✓ ADIF file written to {adif_path}")
+    test_formats = [
+      ("ADIF", writer.write, ".adi"),
+      ("XML", writer.write_xml, ".xml"),
+      ("CSV", writer.write_csv, ".csv"),
+    ]
+    adif_path = output_dir / "adif_test"
 
-    adx_path = output_dir / "adif_test.adx"
-    with open(adx_path, 'w', encoding="utf-8") as fd:
-      parser.write_xml(fd)
-    print(f"✓ ADX (XML) file written to {adx_path}")
+    for fmt, method, suffix in test_formats:
+      filepath = adif_path.with_suffix(suffix)
+      method(filepath)
+      print(f"✓ {fmt} file written to {filepath}")
 
   def run_all_tests(self, output_dir: Path = Path("/tmp")) -> bool:
     """Run all tests and return success status."""

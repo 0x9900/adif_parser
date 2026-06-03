@@ -21,6 +21,8 @@ help:
 clean:
 	rm -rf build/ dist/ *.egg-info/ __pycache__/ .mypy_cache/ .pylint.py
 
+all: pylint mypy pre-commit
+
 # Pre-commit: Run pre-commit hooks
 pre-commit:
 	pre-commit run --all-files
@@ -31,7 +33,7 @@ mypy:
 
 # Pylint: Run code linting
 pylint:
-	-pylint adif_parser/
+	-pylint adif_parser/ adiftest.py
 
 # Build: Build the Python package
 build: clean
