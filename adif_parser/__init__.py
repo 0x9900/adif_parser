@@ -5,16 +5,18 @@
 #
 # Distributed under terms of the BSD 3-Clause license.
 
+import csv
 import re
 import xml.etree.ElementTree as ET
 from datetime import datetime
+from pathlib import Path
 from typing import IO, Any, Callable, Dict, Iterator, List, TypeAlias, TypeVar
 from xml.dom import minidom
 
-__version__ = "0.2.3"
+__version__ = "0.2.4"
 __comment__ = 'This ADIF file was created by https://github.com/0x9900/adif_parser'
 
-ADIF_VERSION = "3.1.7"
+ADIF_VERSION = "1.8"
 
 # Pre-compiled regexes (moved outside class for reuse)
 TAG_PATTERN = re.compile(r'<([^:>]+):(\d+)>([^<]*)')
@@ -26,7 +28,7 @@ ARecord: TypeAlias = Dict[str, str | int | float]
 AData: TypeAlias = List[ARecord]
 
 
-def try_convert(val: Any, converter: Callable[[Any], T]) -> str | T:
+def try_convert_to_numeric(val: Any, converter: Callable[[Any], T]) -> str | T:
   try:
     return converter(val)
   except ValueError:
@@ -50,70 +52,6 @@ class ParseADIF:
     if self._data is None:
       return iter([])
     return iter(self._data)
-
-  def _new_header(self) -> dict:
-    timestamp = datetime.now()
-    header = {
-      'ADIF_VER': ADIF_VERSION,
-      'CREATED_TIMESTAMP': timestamp.strftime('%Y%m%d %H%M%S'),
-      'PROGRAMID': 'parse_adif',
-      'PROGRAMVERSION': __version__,
-    }
-    return header
-
-  def write(self, file_descriptor: IO[str]) -> None:
-    header = self._new_header()
-
-    # write the header
-    print(__comment__, file=file_descriptor)
-
-    for key, val in header.items():
-      print(self.encode(key, val), file=file_descriptor)
-
-    print('<EOH>', file=file_descriptor)
-
-    # write the records
-    if self._data is None:
-      return
-
-    for contact in self._data:
-      record = []
-      for key, val in contact.items():
-        record.append(self.encode(key, val))
-      print(' '.join(record), end=' <EOR>\n', file=file_descriptor)
-
-  def write_xml(self, file_descriptor: IO[str]) -> None:
-    """Create XML with attributes"""
-    header_data = self._new_header()
-    root = ET.Element('ADX')
-
-    # write the header
-    header = ET.SubElement(root, 'HEADER')
-
-    for key, value in header_data.items():
-      child = ET.SubElement(header, key)
-      child.text = str(value)
-
-    records = ET.SubElement(root, 'RECORDS')
-    for item in self._data:
-      record = ET.SubElement(records, 'RECORD')
-      for key, value in item.items():
-        child = ET.SubElement(record, key)
-        child.text = str(value)
-
-    xml_string = ET.tostring(root, encoding='unicode')
-    final_xml = f'<?xml version="1.0" ?>\n<!-- {__comment__} -->\n{xml_string}\n'
-    dom = minidom.parseString(final_xml)
-    print(dom.toprettyxml(indent="  "), file=file_descriptor)
-
-  @staticmethod
-  def encode(key: str, val: str | int | float):
-    if isinstance(val, str):
-      val = val.strip()
-    elif isinstance(val, (int, float)):
-      val = str(val)
-
-    return f'<{key.upper()}:{len(val)}>{val}'
 
   @property
   def header(self) -> AData:
@@ -156,9 +94,9 @@ class ParseADIF:
 
           tag_name = tag_name.strip().upper()
           if tag_name in ParseADIF.FLOAT_TAGS:
-            value = try_convert(value, float)
+            value = try_convert_to_numeric(value, float)
           elif tag_name not in ParseADIF.NON_FLOAT_TAGS:
-            value = try_convert(value, int)
+            value = try_convert_to_numeric(value, int)
 
           record[tag_name] = value
 
@@ -167,5 +105,100 @@ class ParseADIF:
       except (ValueError, IndexError) as err:
         raise ValueError(f"Malformed ADIF record: {raw_record}") from err
 
-
     return records
+
+
+class ADIFWriter:
+
+  def __init__(self, adif: ParseADIF) -> None:
+    self.header = self._new_header()
+    self.contacts = adif.contacts
+
+  def write(self, filename: str | Path) -> None:
+    if isinstance(filename, str):
+      filename = Path(filename)
+
+    header = self._new_header()
+    data = self.contacts or []
+
+    with filename.open('w', newline="", encoding='utf-8') as fd:
+      # write the header
+      print(__comment__, file=fd)
+      for key, val in header:
+        print(self.encode(key, val), file=fd)
+      print('<EOH>', file=fd)
+
+      # write the records
+      for contact in data:
+        record = []
+        for key, val in [(k, str(v)) for k, v in contact.items()]:
+          record.append(self.encode(key, val))
+        print(' '.join(record), end=' <EOR>\n', file=fd)
+
+  def write_xml(self, filename: Path) -> None:
+    """Write an XML file"""
+    if isinstance(filename, str):
+      filename = Path(filename)
+
+    root = ET.Element('ADX')
+
+    # write the header
+    header = ET.SubElement(root, 'HEADER')
+
+    for key, value in self.header:
+      child = ET.SubElement(header, key)
+      child.text = str(value)
+
+    records = ET.SubElement(root, 'RECORDS')
+
+    data = self.contacts or []
+
+    for item in data:
+      record = ET.SubElement(records, 'RECORD')
+      for key, value in [(k, str(v)) for k, v in item.items()]:
+        child = ET.SubElement(record, key)
+        child.text = str(value)
+
+    xml_string = ET.tostring(root, encoding='unicode')
+    final_xml = f'<?xml version="1.0" ?>\n<!-- {__comment__} -->\n{xml_string}\n'
+    dom = minidom.parseString(final_xml)
+
+    with filename.open('w', encoding='utf-8') as fd:
+      print(dom.toprettyxml(indent="  "), file=fd)
+
+  def write_csv(self, filename: Path) -> None:
+    """Write a CSV file"""
+    if isinstance(filename, str):
+      filename = Path(filename)
+
+    data = self.contacts or []
+    fieldnames = sorted({key for row in data for key in row})
+
+    with filename.open('w', newline='', encoding='utf-8') as fd:
+      print(f'# {__comment__}', file=fd)
+      for key, value in self.header:
+        print(f'# {key}: {value}', file=fd)
+
+      writer = csv.DictWriter(fd, fieldnames=fieldnames)
+      writer.writeheader()
+      writer.writerows(data)
+
+  @staticmethod
+  def _new_header() -> list[tuple[str, str]]:
+    timestamp = datetime.now()
+    header = {
+      'ADIF_VER': ADIF_VERSION,
+      'CREATED_TIMESTAMP': timestamp.strftime('%Y%m%d %H%M%S'),
+      'PROGRAMID': 'parse_adif',
+      'PROGRAMVERSION': __version__,
+    }
+    return list(header.items())
+
+  @staticmethod
+  def encode(key: str, val: str | int | float):
+    if isinstance(val, str):
+      val = val.strip()
+    elif isinstance(val, (int, float)):
+      val = str(val)
+
+    return f'<{key.upper()}:{len(val)}>{val}'
