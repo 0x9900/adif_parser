@@ -15,13 +15,14 @@ help:
 	@echo "make pre-commit"
 	@echo "make mypy"
 	@echo "make pylint"
+	@echo "make test"
 	@echo "make build"
 
 # Clean: Remove build artifacts and cache
 clean:
 	rm -rf build/ dist/ *.egg-info/ __pycache__/ .mypy_cache/ .pylint.py
 
-all: pylint mypy pre-commit
+all: pylint mypy pre-commit test
 
 # Pre-commit: Run pre-commit hooks
 pre-commit:
@@ -34,6 +35,9 @@ mypy:
 # Pylint: Run code linting
 pylint:
 	-pylint adif_parser/ adiftest.py
+
+test:
+	./adiftest.py
 
 # Build: Build the Python package
 build: clean

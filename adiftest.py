@@ -108,9 +108,8 @@ class ADIFTestRunner:
 
   def test_header(self, parser: ParseADIF) -> bool:
     """Test header parsing."""
-    header = parser.header[0]
     for key, expected_value in self.test_data.HEADER.items():
-      actual_value = header.get(key)
+      actual_value = parser.header.get(key)
       assert actual_value == expected_value, (f"Header mismatch: {key} "
                                               f"expected '{expected_value}' "
                                               f"got '{actual_value}'")

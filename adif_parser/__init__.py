@@ -41,7 +41,7 @@ class ParseADIF:
   NON_FLOAT_TAGS = frozenset(['BAND', 'QSO_DATE', 'TIME_ON', 'QSO_DATE_OFF', 'TIME_OFF'])
 
   def __init__(self, file_descriptor: IO[str]) -> None:
-    self._header: AData | None = None
+    self._header: ARecord | None = None
     self._data: AData | None = None
 
     text = file_descriptor.read()
@@ -54,7 +54,7 @@ class ParseADIF:
     return iter(self._data)
 
   @property
-  def header(self) -> AData:
+  def header(self) -> ARecord:
     if self._header is None:
       raise ValueError('No header found in the ADIF file')
     return self._header
@@ -70,7 +70,7 @@ class ParseADIF:
     parts = EOH_PATTERN.split(text, maxsplit=1)
 
     if len(parts) == 2:
-      self._header = ParseADIF.parse_lines(parts[0])
+      self._header = ParseADIF.parse_lines(parts[0]).pop()
       self._data = ParseADIF.parse_lines(parts[1])
     else:
       self._data = ParseADIF.parse_lines(parts[0])
@@ -111,24 +111,23 @@ class ParseADIF:
 class ADIFWriter:
 
   def __init__(self, adif: ParseADIF) -> None:
-    self.header = self._new_header()
-    self.contacts = adif.contacts
+    self.header: ARecord | None = self._new_header()
+    self.contacts: AData | None = adif.contacts
 
   def write(self, filename: str | Path) -> None:
     if isinstance(filename, str):
       filename = Path(filename)
 
-    header = self._new_header()
-    data = self.contacts or []
-
     with filename.open('w', newline="", encoding='utf-8') as fd:
       # write the header
       print(__comment__, file=fd)
-      for key, val in header:
+      header: dict = self.header or {}
+      for key, val in header.items():
         print(self.encode(key, val), file=fd)
       print('<EOH>', file=fd)
 
       # write the records
+      data = self.contacts or []
       for contact in data:
         record = []
         for key, val in [(k, str(v)) for k, v in contact.items()]:
@@ -143,28 +142,23 @@ class ADIFWriter:
     root = ET.Element('ADX')
 
     # write the header
-    header = ET.SubElement(root, 'HEADER')
-
-    for key, value in self.header:
-      child = ET.SubElement(header, key)
+    xml_header = ET.SubElement(root, 'HEADER')
+    adi_header: dict = self.header or {}
+    for key, value in adi_header.items():
+      child = ET.SubElement(xml_header, key)
       child.text = str(value)
 
     records = ET.SubElement(root, 'RECORDS')
-
     data = self.contacts or []
-
     for item in data:
       record = ET.SubElement(records, 'RECORD')
       for key, value in [(k, str(v)) for k, v in item.items()]:
         child = ET.SubElement(record, key)
         child.text = str(value)
 
-    xml_string = ET.tostring(root, encoding='unicode')
-    final_xml = f'<?xml version="1.0" ?>\n<!-- {__comment__} -->\n{xml_string}\n'
-    dom = minidom.parseString(final_xml)
-
+    xml_string = self.xml_to_string(root)
     with filename.open('w', encoding='utf-8') as fd:
-      print(dom.toprettyxml(indent="  "), file=fd)
+      print(xml_string, file=fd)
 
   def write_csv(self, filename: Path) -> None:
     """Write a CSV file"""
@@ -176,7 +170,8 @@ class ADIFWriter:
 
     with filename.open('w', newline='', encoding='utf-8') as fd:
       print(f'# {__comment__}', file=fd)
-      for key, value in self.header:
+      header: dict = self.header or {}
+      for key, value in header.items():
         print(f'# {key}: {value}', file=fd)
 
       writer = csv.DictWriter(fd, fieldnames=fieldnames)
@@ -184,15 +179,15 @@ class ADIFWriter:
       writer.writerows(data)
 
   @staticmethod
-  def _new_header() -> list[tuple[str, str]]:
+  def _new_header() -> ARecord | None:
     timestamp = datetime.now()
-    header = {
+    header: ARecord = {
       'ADIF_VER': ADIF_VERSION,
       'CREATED_TIMESTAMP': timestamp.strftime('%Y%m%d %H%M%S'),
       'PROGRAMID': 'parse_adif',
       'PROGRAMVERSION': __version__,
     }
-    return list(header.items())
+    return header
 
   @staticmethod
   def encode(key: str, val: str | int | float):
@@ -202,3 +197,10 @@ class ADIFWriter:
       val = str(val)
 
     return f'<{key.upper()}:{len(val)}>{val}'
+
+  @staticmethod
+  def xml_to_string(root: ET.Element) -> str:
+    xml_string = ET.tostring(root, encoding='unicode')
+    final_xml = f'<?xml version="1.0" ?>\n<!-- {__comment__} -->\n{xml_string}\n'
+    dom = minidom.parseString(final_xml)
+    return dom.toprettyxml(indent="  ")
