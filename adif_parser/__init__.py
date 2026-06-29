@@ -10,10 +10,10 @@ import re
 import xml.etree.ElementTree as ET
 from datetime import datetime
 from pathlib import Path
-from typing import IO, Any, Callable, Dict, Iterator, List, TypeAlias, TypeVar
+from typing import IO, Any, Callable, Dict, Iterator, List, TypeAlias
 from xml.dom import minidom
 
-__version__ = "0.2.4"
+__version__ = "0.2.5"
 __comment__ = 'This ADIF file was created by https://github.com/0x9900/adif_parser'
 
 ADIF_VERSION = "1.8"
@@ -23,12 +23,12 @@ TAG_PATTERN = re.compile(r'<([^:>]+):(\d+)>([^<]*)')
 EOH_PATTERN = re.compile(r'<eoh>', re.IGNORECASE)
 EOR_PATTERN = re.compile(r'<eor>', re.IGNORECASE)
 
-T = TypeVar('T')
-ARecord: TypeAlias = Dict[str, str | int | float]
+AValues: TypeAlias = str | int | float
+ARecord: TypeAlias = Dict[str, AValues]
 AData: TypeAlias = List[ARecord]
 
 
-def try_convert_to_numeric(val: Any, converter: Callable[[Any], T]) -> str | T:
+def try_convert_to_numeric(val: Any, converter: Callable[[Any], AValues]) -> AValues:
   try:
     return converter(val)
   except ValueError:
@@ -85,7 +85,7 @@ class ParseADIF:
         tag_name, length_str, _ = match.groups()  # ignore the regex-captured value
         length = int(length_str)
         value_start = match.start(3)  # start of group 3 in the original string
-        value: str | float | int = raw_record[value_start:value_start + length]
+        value: AValues = raw_record[value_start:value_start + length]
 
         tag_name = tag_name.strip().upper()
         if tag_name in ParseADIF.FLOAT_TAGS:
@@ -199,7 +199,7 @@ class ADIFWriter:
     return header
 
   @staticmethod
-  def encode(key: str, val: str | int | float):
+  def encode(key: str, val: AValues):
     if isinstance(val, str):
       val = val.strip()
     elif isinstance(val, (int, float)):
