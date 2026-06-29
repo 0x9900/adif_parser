@@ -76,34 +76,43 @@ class ParseADIF:
       self._data = ParseADIF.parse_lines(parts[0])
 
   @staticmethod
+  def parse_one_line(raw_record: str) -> dict:
+    """Parse a single raw ADIF record into a dictionary of tags and values."""
+    record = {}
+
+    try:
+      for match in TAG_PATTERN.finditer(raw_record):
+        tag_name, length_str, _ = match.groups()  # ignore the regex-captured value
+        length = int(length_str)
+        value_start = match.start(3)  # start of group 3 in the original string
+        value: str | float | int = raw_record[value_start:value_start + length]
+
+        tag_name = tag_name.strip().upper()
+        if tag_name in ParseADIF.FLOAT_TAGS:
+          value = try_convert_to_numeric(value, float)
+        elif tag_name not in ParseADIF.NON_FLOAT_TAGS:
+          value = try_convert_to_numeric(value, int)
+
+        record[tag_name] = value
+
+    except (ValueError, IndexError) as err:
+      raise ValueError(f"Malformed ADIF record: {raw_record}") from err
+
+    return record
+
+  @staticmethod
   def parse_lines(data: str) -> AData:
+    """Parse ADIF data containing multiple records separated by <eor>."""
     records = []
 
     # Split records based on <eor>
     raw_records = EOR_PATTERN.split(data)
 
     for raw_record in raw_records:
-      record = {}
-      # Use finditer directly
-      try:
-        for match in TAG_PATTERN.finditer(raw_record):
-          tag_name, length_str, _ = match.groups()  # ignore the regex-captured value
-          length = int(length_str)
-          value_start = match.start(3)  # start of group 3 in the original string
-          value = raw_record[value_start:value_start + length]
-
-          tag_name = tag_name.strip().upper()
-          if tag_name in ParseADIF.FLOAT_TAGS:
-            value = try_convert_to_numeric(value, float)
-          elif tag_name not in ParseADIF.NON_FLOAT_TAGS:
-            value = try_convert_to_numeric(value, int)
-
-          record[tag_name] = value
-
-        if record:
-          records.append(record)
-      except (ValueError, IndexError) as err:
-        raise ValueError(f"Malformed ADIF record: {raw_record}") from err
+      if not raw_record:  # Skip empty records
+        continue
+      if record := ParseADIF.parse_one_line(raw_record):
+        records.append(record)
 
     return records
 
